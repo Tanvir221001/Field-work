@@ -1,75 +1,60 @@
-# Luxury Music Streaming App
+# Track Music (Luxury Music App)
 
-A premium, enterprise-grade music streaming application built with Flutter.
+A premium, state-of-the-art music streaming application built with Flutter. Designed with a luxury aesthetic inspired by Apple Music, Spotify Premium, and Nothing OS.
 
-## Features
+## 🌟 Features
+- **Luxury Aesthetic**: Beautiful glassmorphic UI, smooth micro-animations, and dynamic 3-color dark gradients.
+- **Massive Music Library**: Fetches over 800+ songs simultaneously for the Home tab.
+- **Search & Discovery**: Fully functional search screen to find specific artists, tracks, or albums.
+- **Library Management**: (Mock) Save your favorite tracks, manage playlists, and download songs for offline listening.
+- **Complete Settings Suite**: Extensively modeled sub-menus for Account Details, Privacy & Security, Subscriptions, Appearance, Language, Audio Quality, Data Saver, and Notifications.
+- **Offline Storage**: Integrated SQLite for caching and local persistence (mocked in UI).
+- **Responsive Navigation**: State-of-the-art bottom navigation bar built with `GoRouter` using `ShellRoute`.
 
-*   **Luxury UI/UX:** Stunning, pixel-perfect design inspired by top-tier apps (Apple Music, Spotify, Tidal) featuring Glassmorphism, smooth Hero animations, and premium color palettes.
-*   **API Integration:** Real-time search and fetching using the robust **iTunes Search API**.
-*   **Offline Mode & SQLite Caching:** Save your favorite songs and create custom playlists stored locally via `sqflite`.
-*   **Riverpod State Management:** Clean, predictable, and scalable state management using `flutter_riverpod`.
-*   **Clean Architecture:** Strict adherence to Domain-Driven Design (Clean Architecture) principles separating Presentation, Domain, and Data layers.
-*   **Audio Playback:** Native 30-second song previews via `audioplayers`.
-*   **Debounced Search:** Instant, optimized search with local history tracking.
+## 🔌 API Used
+- **iTunes Search API**: Used for fetching real music data, album artwork, artist names, and track previews.
+  - Endpoint: `https://itunes.apple.com/search`
 
-## Architecture
+## 📦 Packages Used
+The following key Flutter packages power this application:
+- **State Management**: `flutter_riverpod` (v3.3.2)
+- **Routing**: `go_router` (v17.3.0)
+- **Networking**: `dio` (v5.10.0)
+- **Local Storage**: `sqflite` (v2.4.3), `shared_preferences` (v2.5.5)
+- **UI & Animations**: `flutter_animate` (v4.5.2), `google_fonts` (v8.1.0), `flutter_screenutil` (v5.9.3)
+- **Data Modeling**: `freezed_annotation`, `json_annotation`
 
-This project strictly follows **Clean Architecture**:
+## 🚀 How to Run Project
 
-*   **Presentation Layer:** Contains Riverpod providers, UI Screens, and custom widgets (Glassmorphism cards, skeletons).
-*   **Domain Layer:** Contains core Entities (`Song`, `Playlist`), Repositories (Interfaces), and UseCases.
-*   **Data Layer:** Contains Remote Data Sources (Dio), Local Data Sources (SQLite), Models (Freezed), and concrete Repository implementations.
+### Prerequisites
+- Flutter SDK (v3.12.1 or higher)
+- Dart SDK
+- An emulator or connected physical device (iOS/Android/Windows/Web)
 
-## Folder Structure
+### Steps
+1. **Clone the repository** (if applicable) or navigate to the project directory:
+   ```bash
+   cd music_app
+   ```
+2. **Install dependencies**:
+   ```bash
+   flutter pub get
+   ```
+3. **Generate Freezed/JSON Serializable files** (if you modify models):
+   ```bash
+   flutter pub run build_runner build --delete-conflicting-outputs
+   ```
+4. **Run the app**:
+   ```bash
+   flutter run
+   ```
+   *(Note: For the best visual experience, run on an iOS simulator, an Android device, or Windows desktop).*
 
-```
-lib/
-├── core/
-│   ├── constants/
-│   ├── routes/
-│   ├── theme/
-│   └── utils/
-├── data/
-│   ├── datasource/
-│   │   ├── local/
-│   │   └── remote/
-│   ├── models/
-│   └── repository/
-├── domain/
-│   ├── entities/
-│   ├── repositories/
-│   └── usecases/
-├── presentation/
-│   ├── providers/
-│   ├── screens/
-│   └── widgets/
-└── main.dart
-```
+## 📸 Screenshots
 
-## Packages Used
+| Home Screen | Search Screen | Profile Screen | Settings Screen |
+| :---: | :---: | :---: | :---: |
+| ![Home](assets/images/Home_screen.png) | ![Search](assets/images/Scarch_screen.png) | ![Profile](assets/images/Profile_screen.png) | ![Settings](assets/images/Setting_screen.png) |
 
-*   `flutter_riverpod`: State management
-*   `dio`: Networking
-*   `sqflite`: Local Database caching
-*   `freezed` / `json_serializable`: Data modeling
-*   `go_router`: Navigation and Routing
-*   `cached_network_image`: Image caching
-*   `flutter_animate`: Complex UI animations
-*   `audioplayers`: Audio preview playback
-
-## Screenshots Placeholder
-
-*(Insert screenshots of Splash Screen, Home Screen, Detail Screen, and Library here)*
-
-## How to Run
-
-1.  Clone the repository.
-2.  Run `flutter pub get`.
-3.  (Optional) Run `flutter pub run build_runner build --delete-conflicting-outputs` to regenerate Freezed models if you modify them.
-4.  Run `flutter run` on your preferred device (iOS/Android/Desktop).
-
-## Future Improvements
-
-*   Full audio playback with background audio services.
-*   User Authentication and Profile management.
-*   Lyrics fetching from external API.
+---
+*Designed & Developed with Flutter.*
