@@ -1,116 +1,85 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:provider/provider.dart';
-import '../../data/model/music_item.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/playlist_provider.dart';
-import '../screens/detail_screen.dart';
+import '../../domain/entities/song.dart';
+import '../../core/theme/app_theme.dart';
 
-class MusicListItem extends StatelessWidget {
-  final MusicItem item;
-  final VoidCallback? onTap;
+class PremiumMusicListItem extends StatelessWidget {
+  final Song song;
+  final VoidCallback onTap;
   final Widget? trailing;
 
-  const MusicListItem({super.key, required this.item, this.onTap, this.trailing});
-
-  void _showAddToPlaylistDialog(BuildContext context) {
-    final user = context.read<AuthProvider>().currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please login first')));
-      return;
-    }
-    
-    final playlists = context.read<PlaylistProvider>().playlists;
-    if (playlists.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No playlists available')));
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1128),
-          title: const Text('Add to Playlist', style: TextStyle(color: Colors.white)),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: playlists.length,
-              itemBuilder: (context, index) {
-                final playlist = playlists[index];
-                return ListTile(
-                  title: Text(playlist.name, style: const TextStyle(color: Colors.white)),
-                  onTap: () {
-                    context.read<PlaylistProvider>().addTrackToPlaylist(playlist.id!, item.id);
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added to ${playlist.name}')));
-                  },
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
+  const PremiumMusicListItem({
+    super.key,
+    required this.song,
+    required this.onTap,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Hero(
-        tag: 'list_img_${item.id}',
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(25.0),
-          child: item.imageUrl.isNotEmpty
-              ? CachedNetworkImage(
-                  imageUrl: item.imageUrl,
-                  width: 50,
-                  height: 50,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.transparent,
+        ),
+        child: Row(
+          children: [
+            Hero(
+              tag: 'cover_${song.id}',
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: CachedNetworkImage(
+                  imageUrl: song.coverUrl ?? '',
+                  width: 60,
+                  height: 60,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(color: Colors.white10),
-                  errorWidget: (context, url, error) => const Icon(Icons.error, color: Colors.white54),
-                )
-              : Container(
-                  width: 50,
-                  height: 50,
-                  color: Colors.white10,
-                  child: const Icon(Icons.music_note, color: Colors.white54),
+                  placeholder: (context, url) => Container(
+                    color: AppTheme.cardColor,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: AppTheme.cardColor,
+                    child: const Icon(Icons.music_note, color: Colors.grey),
+                  ),
                 ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    song.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    song.artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.white60,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (trailing != null) trailing!,
+          ],
         ),
       ),
-      title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-      subtitle: Text(item.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white54, fontSize: 13)),
-      trailing: trailing ?? Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(item.isLocal ? Icons.favorite : Icons.favorite_border, color: item.isLocal ? Colors.redAccent : Colors.white24, size: 20),
-          const SizedBox(width: 12),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.white54, size: 20),
-            color: const Color(0xFF1E1128),
-            onSelected: (value) {
-              if (value == 'add_playlist') {
-                _showAddToPlaylistDialog(context);
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'add_playlist',
-                child: Text('Add to Playlist', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-        ],
-      ),
-      onTap: onTap ?? () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DetailScreen(item: item),
-          ),
-        );
-      },
     );
   }
 }

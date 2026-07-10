@@ -1,352 +1,190 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:provider/provider.dart';
-import 'package:audioplayers/audioplayers.dart';
-import '../../data/model/music_item.dart';
-import '../../providers/music_provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/playlist_provider.dart';
-import 'crud_screen.dart';
+import 'dart:ui';
+import '../../domain/entities/song.dart';
+import '../../core/theme/app_theme.dart';
+import '../providers/player_provider.dart';
+import '../providers/favorites_provider.dart';
 
-class DetailScreen extends StatefulWidget {
-  final MusicItem item;
-
-  const DetailScreen({super.key, required this.item});
+class MusicDetailScreen extends ConsumerStatefulWidget {
+  final Song song;
+  const MusicDetailScreen({super.key, required this.song});
 
   @override
-  State<DetailScreen> createState() => _DetailScreenState();
+  ConsumerState<MusicDetailScreen> createState() => _MusicDetailScreenState();
 }
 
-class _DetailScreenState extends State<DetailScreen> {
-  late AudioPlayer _audioPlayer;
-  bool _isPlaying = false;
-  Duration _duration = Duration.zero;
-  Duration _position = Duration.zero;
-
-  void _showAddToPlaylistDialog(BuildContext context) {
-    final user = context.read<AuthProvider>().currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please login first')));
-      return;
-    }
-    
-    final playlists = context.read<PlaylistProvider>().playlists;
-    if (playlists.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No playlists available')));
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1128),
-          title: const Text('Add to Playlist', style: TextStyle(color: Colors.white)),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: playlists.length,
-              itemBuilder: (context, index) {
-                final playlist = playlists[index];
-                return ListTile(
-                  title: Text(playlist.name, style: const TextStyle(color: Colors.white)),
-                  onTap: () {
-                    context.read<PlaylistProvider>().addTrackToPlaylist(playlist.id!, widget.item.id);
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added to ${playlist.name}')));
-                  },
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
-
+class _MusicDetailScreenState extends ConsumerState<MusicDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _audioPlayer = AudioPlayer();
-    
-    _audioPlayer.onPlayerStateChanged.listen((state) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = state == PlayerState.playing;
-        });
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(playerStateProvider.notifier).playSong(widget.song);
     });
-
-    _audioPlayer.onDurationChanged.listen((newDuration) {
-      if (mounted) {
-        setState(() {
-          _duration = newDuration;
-        });
-      }
-    });
-
-    _audioPlayer.onPositionChanged.listen((newPosition) {
-      if (mounted) {
-        setState(() {
-          _position = newPosition;
-        });
-      }
-    });
-
-    _audioPlayer.onPlayerComplete.listen((event) {
-      if (mounted) {
-        setState(() {
-          _isPlaying = false;
-          _position = Duration.zero;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _audioPlayer.dispose();
-    super.dispose();
-  }
-
-  void _togglePlayPause() async {
-    if (widget.item.previewUrl == null || widget.item.previewUrl!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No preview available for this song.')));
-      return;
-    }
-    
-    try {
-      if (_isPlaying) {
-        await _audioPlayer.pause();
-      } else {
-        await _audioPlayer.play(UrlSource(widget.item.previewUrl!));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Playback error: $e')),
-        );
-      }
-    }
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    return "$twoDigitMinutes:$twoDigitSeconds";
   }
 
   @override
   Widget build(BuildContext context) {
-    final item = widget.item;
-    
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1E1128),
-            Color(0xFF0F0817),
-          ],
-        ),
-      ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: const Text(
-            'Now Playing',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          centerTitle: true,
-          actions: [
-            if (item.isLocal)
-              IconButton(
-                icon: const Icon(Icons.edit, color: Colors.white70),
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => CrudScreen(itemToEdit: item)),
-                  );
-                },
-              ),
-            if (item.isLocal)
-              IconButton(
-                icon: const Icon(Icons.delete, color: Colors.white70),
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Delete'),
-                      content: const Text('Are you sure you want to delete this item?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Delete'),
-                        ),
-                      ],
-                    ),
-                  );
+    final playerState = ref.watch(playerStateProvider);
+    final isFavAsync = ref.watch(favoritesProvider);
+    final isFavorite = isFavAsync.maybeWhen(
+      data: (songs) => songs.any((s) => s.id == widget.song.id),
+      orElse: () => false,
+    );
 
-                  if (confirm == true) {
-                    if (!context.mounted) return;
-                    await context.read<MusicProvider>().deleteCustomMusic(item.id);
-                    if (context.mounted) {
-                      Navigator.pop(context); // Go back after delete
-                    }
-                  }
-                },
-              ),
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, color: Colors.white70),
-              color: const Color(0xFF1E1128),
-              onSelected: (value) {
-                if (value == 'add_playlist') {
-                  _showAddToPlaylistDialog(context);
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'add_playlist',
-                  child: Text('Add to Playlist', style: TextStyle(color: Colors.white)),
-                ),
-              ],
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Background blurred image
+          Positioned.fill(
+            child: CachedNetworkImage(
+              imageUrl: widget.song.coverUrl ?? '',
+              fit: BoxFit.cover,
             ),
-          ],
-        ),
-        body: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          ),
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Container(color: Colors.black.withOpacity(0.5)),
+            ),
+          ),
+          
+          SafeArea(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Artwork
+                // AppBar
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 32, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const Text('Now Playing', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.more_vert, color: Colors.white),
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
+                
+                const Spacer(flex: 1),
+                
+                // Album Art
                 Hero(
-                  tag: 'img_${item.id}', // Wait, home uses list_img_${item.id}, I should use the same tag if I want to animate from list, or just use this for detail.
+                  tag: 'cover_${widget.song.id}',
                   child: Container(
+                    width: 300,
+                    height: 300,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(32),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.deepPurple.withOpacity(0.3),
+                          color: Colors.black.withOpacity(0.4),
                           blurRadius: 30,
-                          spreadRadius: 5,
-                          offset: const Offset(0, 10),
-                        ),
+                          offset: const Offset(0, 15),
+                        )
                       ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(30),
-                      child: item.imageUrl.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: item.imageUrl.replaceAll('100x100', '600x600'),
-                              width: MediaQuery.of(context).size.width * 0.85 > 300 ? 300 : MediaQuery.of(context).size.width * 0.85,
-                              height: MediaQuery.of(context).size.width * 0.85 > 300 ? 300 : MediaQuery.of(context).size.width * 0.85,
-                              fit: BoxFit.cover,
-                            )
-                          : Container(
-                              width: MediaQuery.of(context).size.width * 0.85 > 300 ? 300 : MediaQuery.of(context).size.width * 0.85,
-                              height: MediaQuery.of(context).size.width * 0.85 > 300 ? 300 : MediaQuery.of(context).size.width * 0.85,
-                              color: Colors.white10,
-                              child: const Icon(Icons.music_note, size: 100, color: Colors.white54),
-                            ),
+                      borderRadius: BorderRadius.circular(32),
+                      child: CachedNetworkImage(
+                        imageUrl: widget.song.coverUrl ?? '',
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 ),
                 
-                // Title & Artist
-                Column(
-                  children: [
-                    Text(
-                      item.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      item.subtitle,
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 18,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-
-                // Simulated Waveform & Progress
-                Column(
-                  children: [
-                    // A fake waveform image to match the mockup aesthetic
-                    Opacity(
-                      opacity: 0.5,
-                      child: SizedBox(
-                        height: 50,
-                        width: double.infinity,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: List.generate(40, (index) {
-                            final heights = [15.0, 30.0, 50.0, 40.0, 20.0, 35.0, 45.0, 25.0, 15.0, 30.0];
-                            return Container(
-                              width: 4,
-                              height: heights[index % heights.length],
-                              decoration: BoxDecoration(
+                const Spacer(flex: 1),
+                
+                // Song Info
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.song.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(2),
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
                               ),
-                            );
-                          }),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              widget.song.artist,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        activeTrackColor: Colors.white,
-                        inactiveTrackColor: Colors.white24,
-                        thumbColor: Colors.white,
-                        trackHeight: 2.0,
-                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
-                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 14.0),
-                      ),
-                      child: Slider(
-                        min: 0,
-                        max: _duration.inSeconds > 0 ? _duration.inSeconds.toDouble() : 1.0,
-                        value: _position.inSeconds.toDouble().clamp(0.0, _duration.inSeconds > 0 ? _duration.inSeconds.toDouble() : 1.0),
-                        onChanged: (value) async {
-                          final position = Duration(seconds: value.toInt());
-                          await _audioPlayer.seek(position);
+                      IconButton(
+                        icon: Icon(
+                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: isFavorite ? AppTheme.secondaryColor : Colors.white,
+                          size: 32,
+                        ),
+                        onPressed: () {
+                          ref.read(favoritesProvider.notifier).toggleFavorite(widget.song);
                         },
                       ),
-                    ),
-                    Text(
-                      '${_formatDuration(_position)} / ${_formatDuration(_duration)}',
-                      style: const TextStyle(color: Colors.white54, fontSize: 12),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-
+                
+                const SizedBox(height: 32),
+                
+                // Progress Bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    children: [
+                      SliderTheme(
+                        data: SliderThemeData(
+                          trackHeight: 4,
+                          activeTrackColor: AppTheme.primaryColor,
+                          inactiveTrackColor: Colors.white.withOpacity(0.2),
+                          thumbColor: AppTheme.primaryColor,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                        ),
+                        child: Slider(
+                          value: playerState.position.inSeconds.toDouble(),
+                          max: playerState.duration.inSeconds.toDouble() > 0 
+                               ? playerState.duration.inSeconds.toDouble() 
+                               : 30.0, // iTunes previews are usually 30s
+                          onChanged: (val) {
+                            ref.read(playerStateProvider.notifier).seek(Duration(seconds: val.toInt()));
+                          },
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(_formatDuration(playerState.position), style: const TextStyle(color: Colors.white54)),
+                          Text(_formatDuration(playerState.duration), style: const TextStyle(color: Colors.white54)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+                
                 // Controls
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -356,33 +194,33 @@ class _DetailScreenState extends State<DetailScreen> {
                       onPressed: () {},
                     ),
                     IconButton(
-                      icon: const Icon(Icons.skip_previous, color: Colors.white, size: 36),
+                      icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 40),
                       onPressed: () {},
                     ),
-                    GestureDetector(
-                      onTap: _togglePlayPause,
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: const BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          playerState.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                           color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withOpacity(0.3),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
-                          ],
+                          size: 40,
                         ),
-                        child: Icon(
-                          _isPlaying ? Icons.pause : Icons.play_arrow,
-                          color: Colors.black,
-                          size: 36,
-                        ),
+                        onPressed: () {
+                          if (playerState.isPlaying) {
+                            ref.read(playerStateProvider.notifier).pause();
+                          } else {
+                            ref.read(playerStateProvider.notifier).resume();
+                          }
+                        },
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.skip_next, color: Colors.white, size: 36),
+                      icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 40),
                       onPressed: () {},
                     ),
                     IconButton(
@@ -391,27 +229,19 @@ class _DetailScreenState extends State<DetailScreen> {
                     ),
                   ],
                 ),
-
-                // Lyrics Preview
-                const Column(
-                  children: [
-                    Text(
-                      'Every time you try to',
-                      style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'forget who I am',
-                      style: TextStyle(color: Colors.white24, fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
+                
+                const Spacer(flex: 1),
               ],
             ),
           ),
-        ),
+        ],
       ),
-    ),
-  );
-}
+    );
+  }
+  
+  String _formatDuration(Duration d) {
+    String minutes = d.inMinutes.toString().padLeft(2, '0');
+    String seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
 }
