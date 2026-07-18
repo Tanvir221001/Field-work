@@ -2,6 +2,12 @@
 
 A premium, state-of-the-art music streaming application built with Flutter. Designed with a luxury aesthetic inspired by Apple Music, Spotify Premium, and Nothing OS.
 
+## 📥 Download APK
+
+> **[⬇ Download Latest APK](app-release.apk)**
+
+You can install the APK directly on any Android device (Android 5.0+). Simply download and enable "Install from Unknown Sources" if prompted.
+
 ## 🌟 Features
 - **Luxury Aesthetic**: Beautiful glassmorphic UI, smooth micro-animations, and dynamic 3-color dark gradients.
 - **Massive Music Library**: Fetches over 800+ songs simultaneously for the Home tab.
